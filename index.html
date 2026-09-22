@@ -1,1 +1,1225 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>3D Computer Workspace — Dipendra Xettri</title>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ═══════════════════════════════════════════════
+   TOKENS
+   ═══════════════════════════════════════════════ */
+      :root {
+        --white: #fff;
+        --off: #f6f5f2;
+        --ink: #0a0a0b;
+        --charcoal: #101114;
+        --gray: #71757d;
+        --muted: #9aa0a8;
+        --line-d: rgba(255, 255, 255, 0.13);
+        --line-d2: rgba(255, 255, 255, 0.06);
+        --accent: #2f6bff;
+        --cyan: #3ad2ff;
+        --f-display: "Space Grotesk", system-ui, sans-serif;
+        --f-mono: "JetBrains Mono", ui-monospace, monospace;
+        --s3: 12px;
+        --s4: 16px;
+        --s5: 24px;
+        --s6: 32px;
+        --s7: 48px;
+        --s8: 64px;
+        --gutter: clamp(18px, 4.2vw, 64px);
+        --maxw: 1560px;
+        --ease: cubic-bezier(0.22, 1, 0.36, 1);
+        --fs-mono: clamp(0.62rem, 0.76vw, 0.72rem);
+      }
+
+      /* ═══════════════════════════════════════════════
+   RESET
+   ═══════════════════════════════════════════════ */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+        scroll-behavior: smooth;
+        scroll-padding-top: 20px;
+      }
+      body {
+        margin: 0;
+        background: var(--charcoal);
+        color: var(--white);
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        line-height: 1.6;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
+      img,
+      svg,
+      canvas {
+        display: block;
+        max-width: 100%;
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+      ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      /* ═══════════════════════════════════════════════
+   HELPERS
+   ═══════════════════════════════════════════════ */
+      .wrap {
+        width: 100%;
+        max-width: var(--maxw);
+        margin-inline: auto;
+        padding-inline: var(--gutter);
+      }
+      .mono {
+        font-family: var(--f-mono);
+        font-size: var(--fs-mono);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-weight: 400;
+      }
+      .lead {
+        font-size: clamp(1.05rem, 1.7vw, 1.5rem);
+        line-height: 1.5;
+        font-weight: 300;
+        letter-spacing: -0.01em;
+      }
+      [data-reveal] {
+        opacity: 0;
+        transform: translateY(20px);
+        transition:
+          opacity 0.9s var(--ease),
+          transform 0.9s var(--ease);
+      }
+      [data-reveal].is-in {
+        opacity: 1;
+        transform: none;
+      }
+
+      /* ═══════════════════════════════════════════════
+   WORKSPACE SECTION
+   ═══════════════════════════════════════════════ */
+      .workspace {
+        background:
+          radial-gradient(
+            90% 70% at 70% 10%,
+            rgba(47, 107, 255, 0.22),
+            transparent 60%
+          ),
+          radial-gradient(
+            70% 60% at 10% 90%,
+            rgba(58, 210, 255, 0.1),
+            transparent 60%
+          ),
+          linear-gradient(180deg, #0b0c0f, var(--charcoal) 40%, #0b0c0f);
+        color: #fff;
+        overflow: hidden;
+        padding-block: 0;
+        position: relative;
+      }
+
+      .workspace-inner {
+        position: relative;
+        min-height: min(150vh, 1300px);
+      }
+
+      /* sticky 3D canvas */
+      .ws-canvas {
+        position: sticky;
+        top: 0;
+        width: 100%;
+        height: 100svh;
+        z-index: 1;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 1.2s var(--ease);
+      }
+      .ws-canvas.is-ready {
+        opacity: 1;
+      }
+      body.no-webgl .ws-canvas {
+        display: none;
+      }
+
+      /* fallback if WebGL unavailable */
+      .ws-fallback {
+        position: sticky;
+        top: 0;
+        height: 100svh;
+        display: none;
+        place-items: center;
+        background: radial-gradient(
+          circle at 50% 40%,
+          rgba(47, 107, 255, 0.25),
+          transparent 60%
+        );
+      }
+      body.no-webgl .ws-fallback {
+        display: grid;
+      }
+      .ws-fallback .big-dx {
+        font-family: var(--f-display);
+        font-size: clamp(6rem, 26vw, 22rem);
+        font-weight: 700;
+        letter-spacing: -0.06em;
+        color: transparent;
+        -webkit-text-stroke: 1px rgba(255, 255, 255, 0.25);
+      }
+
+      /* text overlay that sits on top of the canvas */
+      .ws-overlay {
+        position: relative;
+        z-index: 3;
+        margin-top: -100svh;
+        min-height: 100svh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding-block: clamp(64px, 10vw, 120px);
+        pointer-events: none;
+      }
+      .ws-overlay .wrap {
+        pointer-events: auto;
+      }
+
+      /* section header */
+      .sec-head {
+        display: flex;
+        align-items: baseline;
+        gap: var(--s4);
+        margin-bottom: clamp(32px, 4vw, 64px);
+        flex-wrap: wrap;
+      }
+      .sec-num {
+        font-family: var(--f-mono);
+        font-size: var(--fs-mono);
+        letter-spacing: 0.18em;
+        color: var(--accent);
+        padding-top: 0.35em;
+      }
+      .sec-rule {
+        flex: 1;
+        height: 1px;
+        background: var(--line-d);
+        min-width: 40px;
+        margin-bottom: 0.5em;
+      }
+      .sec-title {
+        font-family: var(--f-display);
+        font-size: clamp(1.6rem, 3.6vw, 2.9rem);
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        text-transform: uppercase;
+        line-height: 1;
+      }
+
+      /* stages */
+      .ws-stages {
+        display: flex;
+        flex-direction: column;
+        gap: clamp(48px, 12vh, 140px);
+        margin-top: var(--s7);
+      }
+      .ws-stage {
+        max-width: 34ch;
+        opacity: 0.28;
+        transition:
+          opacity 0.6s var(--ease),
+          transform 0.6s var(--ease);
+        transform: translateY(8px);
+      }
+      .ws-stage.is-active {
+        opacity: 1;
+        transform: none;
+      }
+      .ws-stage .idx {
+        font-family: var(--f-mono);
+        font-size: var(--fs-mono);
+        letter-spacing: 0.18em;
+        color: var(--cyan);
+        display: block;
+        margin-bottom: var(--s3);
+      }
+      .ws-stage h3 {
+        font-family: var(--f-display);
+        font-size: clamp(1.3rem, 2.6vw, 2.1rem);
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        text-transform: uppercase;
+        line-height: 1.05;
+        margin-bottom: var(--s3);
+      }
+      .ws-stage p {
+        color: rgba(255, 255, 255, 0.62);
+        font-size: 0.98rem;
+      }
+
+      /* mobile adjustments */
+      @media (max-width: 900px) {
+        .workspace-inner {
+          min-height: auto;
+        }
+        .ws-canvas {
+          position: relative;
+          height: 70svh;
+          top: auto;
+        }
+        .ws-fallback {
+          position: relative;
+          height: 70svh;
+          top: auto;
+        }
+        .ws-overlay {
+          margin-top: 0;
+          min-height: auto;
+          padding-block: var(--s8) 0;
+        }
+        .ws-stages {
+          gap: var(--s8);
+        }
+        .ws-stage {
+          opacity: 1;
+          transform: none;
+          max-width: none;
+        }
+      }
+
+      /* reduced motion */
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        * {
+          transition-duration: 0.001ms !important;
+          animation-duration: 0.001ms !important;
+        }
+        [data-reveal] {
+          opacity: 1;
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- ═══════════════════════════════════════════════════════════
+     3D COMPUTER WORKSPACE SECTION
+     ═══════════════════════════════════════════════════════════ -->
+    <section
+      id="workspace"
+      class="workspace"
+      data-section="04"
+      data-label="Workspace"
+    >
+      <div class="workspace-inner">
+        <canvas class="ws-canvas" id="wsCanvas" aria-hidden="true"></canvas>
+
+        <div class="ws-fallback" aria-hidden="true">
+          <span class="big-dx">DX</span>
+        </div>
+
+        <div class="ws-overlay">
+          <div class="wrap">
+            <div class="sec-head">
+              <span class="sec-num">04</span><span class="sec-rule"></span>
+              <h2 class="sec-title" style="color: #fff">
+                The Digital Workspace
+              </h2>
+            </div>
+
+            <p
+              class="lead"
+              style="max-width: 46ch; color: rgba(255, 255, 255, 0.66)"
+              data-reveal
+            >
+              This is where the work happens — a desk, a screen, a terminal and
+              a browser. Scroll to move through the space.
+            </p>
+
+            <div class="ws-stages">
+              <article class="ws-stage" data-stage>
+                <span class="idx">Stage 01</span>
+                <h3>Wide view</h3>
+                <p>
+                  The whole workspace — desk, monitor, keyboard, the quiet
+                  objects that make up a working environment.
+                </p>
+              </article>
+              <article class="ws-stage" data-stage>
+                <span class="idx">Stage 02</span>
+                <h3>Approach the desk</h3>
+                <p>
+                  Moving closer. Light spills from the screen across the surface
+                  and reflections shift with the camera.
+                </p>
+              </article>
+              <article class="ws-stage" data-stage>
+                <span class="idx">Stage 03</span>
+                <h3>Focus the monitor</h3>
+                <p>
+                  Markup, styles and logic — a believable editor interface
+                  rather than decorative noise.
+                </p>
+              </article>
+              <article class="ws-stage" data-stage>
+                <span class="idx">Stage 04</span>
+                <h3>Into the stack</h3>
+                <p>
+                  The tools of the trade float up out of the desk and become the
+                  technology ecosystem.
+                </p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+     SCRIPT — the full 3D scene
+     ═══════════════════════════════════════════════════════════ -->
+    <script type="module">
+      /* ──────────────────────────────────────────────
+   UTILS
+   ────────────────────────────────────────────── */
+      const $ = (s, c = document) => c.querySelector(s);
+      const $$ = (s, c = document) => Array.from(c.querySelectorAll(s));
+      const lerp = (a, b, t) => a + (b - a) * t;
+      const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+
+      const prefersReduced = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      const isTouch = window.matchMedia(
+        "(hover: none), (pointer: coarse)",
+      ).matches;
+
+      /* ──────────────────────────────────────────────
+   LOAD THREE.JS (CDN with fallback)
+   ────────────────────────────────────────────── */
+      async function loadThree() {
+        const urls = [
+          "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        ];
+        for (const u of urls) {
+          try {
+            return await import(u);
+          } catch (e) {
+            /* try next */
+          }
+        }
+        return null;
+      }
+
+      /* ──────────────────────────────────────────────
+   SCREEN TEXTURE — code editor drawn on canvas
+   ────────────────────────────────────────────── */
+      function makeScreenTexture(THREE, variant = 0) {
+        const W = 1024,
+          H = 640;
+        const c = document.createElement("canvas");
+        c.width = W;
+        c.height = H;
+        const ctx = c.getContext("2d");
+
+        const palette =
+          variant === 0
+            ? {
+                bg: "#0d1117",
+                gutter: "#161b22",
+                line: "#30363d",
+                txt: "#8b949e",
+                key: "#ff7b72",
+                fn: "#d2a8ff",
+                str: "#a5d6ff",
+                num: "#79c0ff",
+                com: "#6e7681",
+              }
+            : {
+                bg: "#0b0e14",
+                gutter: "#11151c",
+                line: "#242a35",
+                txt: "#94a3b8",
+                key: "#f472b6",
+                fn: "#7dd3fc",
+                str: "#bef264",
+                num: "#fdba74",
+                com: "#64748b",
+              };
+
+        const lines =
+          variant === 0
+            ? [
+                [
+                  ["<div", "key"],
+                  [" class=", "txt"],
+                  ['"workspace"', "str"],
+                  [">", "key"],
+                ],
+                [
+                  ["  <h1>", "key"],
+                  ["Building digital experiences", "txt"],
+                  ["</h1>", "key"],
+                ],
+                [
+                  ["  <p ", "key"],
+                  ["class=", "txt"],
+                  ['"lead"', "str"],
+                  [">", "key"],
+                ],
+                [["    Clean engineering, expressive design.", "com"]],
+                [["  </p>", "key"]],
+                [["</div>", "key"]],
+                [],
+                [
+                  ["const", "key"],
+                  [" build ", "fn"],
+                  ["= (", "txt"],
+                  ["idea", "num"],
+                  [") => {", "txt"],
+                ],
+                [
+                  ["  return ", "key"],
+                  ["idea", "num"],
+                  [".map(", "txt"],
+                  ["craft", "fn"],
+                  [");", "txt"],
+                ],
+                [["};", "txt"]],
+                [],
+                [["// shipping…", "com"]],
+              ]
+            : [
+                [
+                  ["import", "key"],
+                  [" { motion } ", "txt"],
+                  ["from", "key"],
+                  [' "ui"', "str"],
+                  [";", "txt"],
+                ],
+                [],
+                [
+                  ["export function", "key"],
+                  [" Experience", "fn"],
+                  ["() {", "txt"],
+                ],
+                [
+                  ["  const", "key"],
+                  [" [state] = ", "txt"],
+                  ["useState", "fn"],
+                  ["(", "txt"],
+                  ["0", "num"],
+                  [");", "txt"],
+                ],
+                [],
+                [
+                  ["  return", "key"],
+                  [" (", "txt"],
+                ],
+                [
+                  ["    <Layout", "key"],
+                  [" depth=", "txt"],
+                  ['"3d"', "str"],
+                  [">", "key"],
+                ],
+                [["      <Motion />", "key"]],
+                [["    </Layout>", "key"]],
+                [["  );", "txt"]],
+                [["}", "txt"]],
+              ];
+
+        /* background + gutter */
+        ctx.fillStyle = palette.bg;
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = palette.gutter;
+        ctx.fillRect(0, 0, 84, H);
+        ctx.fillStyle = palette.line;
+        ctx.fillRect(84, 0, 1, H);
+        ctx.fillStyle = palette.line;
+        ctx.fillRect(0, 0, W, 44);
+
+        /* window dots */
+        ["#ff5f57", "#febc2e", "#28c840"].forEach((col, i) => {
+          ctx.beginPath();
+          ctx.arc(26 + i * 22, 22, 6, 0, Math.PI * 2);
+          ctx.fillStyle = col;
+          ctx.fill();
+        });
+
+        /* tab */
+        ctx.fillStyle = palette.bg;
+        ctx.fillRect(120, 8, 190, 36);
+        ctx.fillStyle = palette.txt;
+        ctx.font = "500 17px ui-monospace, monospace";
+        ctx.fillText("index.html", 138, 32);
+        ctx.fillStyle = palette.line;
+        ctx.fillRect(120, 43, 190, 1);
+
+        /* code lines */
+        ctx.font = "400 19px ui-monospace, SFMono-Regular, monospace";
+        lines.forEach((segs, i) => {
+          const y = 84 + i * 34;
+          ctx.fillStyle = palette.com;
+          ctx.textAlign = "right";
+          ctx.fillText(String(i + 1).padStart(2, "0"), 66, y);
+          ctx.textAlign = "left";
+
+          let x = 112;
+          segs.forEach(([text, kind]) => {
+            ctx.fillStyle = palette[kind] || palette.txt;
+            ctx.fillText(text, x, y);
+            x += ctx.measureText(text).width;
+          });
+        });
+
+        /* terminal strip */
+        ctx.fillStyle = palette.gutter;
+        ctx.fillRect(0, H - 96, W, 96);
+        ctx.fillStyle = palette.line;
+        ctx.fillRect(0, H - 96, W, 1);
+        ctx.font = "400 17px ui-monospace, monospace";
+        ctx.fillStyle = palette.str;
+        ctx.fillText("$ npm run build", 26, H - 58);
+        ctx.fillStyle = palette.com;
+        ctx.fillText("✓ built in 0.82s  ·  ready to deploy", 26, H - 28);
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = 4;
+        return { tex, canvas: c, ctx, palette, lines, W, H };
+      }
+
+      /* ──────────────────────────────────────────────
+   BUILD DESK — full computer setup
+   ────────────────────────────────────────────── */
+      function buildDesk(THREE, opts = {}) {
+        const g = new THREE.Group();
+
+        const matDesk = new THREE.MeshStandardMaterial({
+          color: 0x16181d,
+          roughness: 0.55,
+          metalness: 0.32,
+        });
+        const matDark = new THREE.MeshStandardMaterial({
+          color: 0x0d0f13,
+          roughness: 0.7,
+          metalness: 0.25,
+        });
+        const matMetal = new THREE.MeshStandardMaterial({
+          color: 0x9aa2ad,
+          roughness: 0.32,
+          metalness: 0.9,
+        });
+        const matPlastic = new THREE.MeshStandardMaterial({
+          color: 0x24272e,
+          roughness: 0.85,
+          metalness: 0.05,
+        });
+
+        /* desk surface */
+        const desk = new THREE.Mesh(
+          new THREE.BoxGeometry(5.4, 0.14, 2.3),
+          matDesk,
+        );
+        desk.position.y = 0;
+        desk.receiveShadow = true;
+        g.add(desk);
+
+        /* desk front edge */
+        const edge = new THREE.Mesh(
+          new THREE.BoxGeometry(5.4, 0.5, 0.06),
+          matDark,
+        );
+        edge.position.set(0, -0.32, 1.16);
+        g.add(edge);
+
+        /* ── monitor ── */
+        const monitor = new THREE.Group();
+        const base = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.42, 0.48, 0.035, 28),
+          matMetal,
+        );
+        base.position.set(0, 0.09, 0);
+        monitor.add(base);
+
+        const neck = new THREE.Mesh(
+          new THREE.BoxGeometry(0.09, 0.55, 0.09),
+          matMetal,
+        );
+        neck.position.set(0, 0.36, -0.06);
+        monitor.add(neck);
+
+        const panel = new THREE.Mesh(
+          new THREE.BoxGeometry(2.25, 1.34, 0.055),
+          matDark,
+        );
+        panel.position.set(0, 1.28, 0);
+        panel.rotation.x = -0.06;
+        monitor.add(panel);
+
+        const bezel = new THREE.Mesh(
+          new THREE.BoxGeometry(2.32, 1.41, 0.035),
+          matPlastic,
+        );
+        bezel.position.set(0, 1.28, -0.03);
+        bezel.rotation.x = -0.06;
+        monitor.add(bezel);
+
+        const screen = makeScreenTexture(THREE, opts.screenVariant || 0);
+        const screenMesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(2.12, 1.24),
+          new THREE.MeshBasicMaterial({ map: screen.tex, toneMapped: false }),
+        );
+        screenMesh.position.set(0, 1.28, 0.035);
+        screenMesh.rotation.x = -0.06;
+        monitor.add(screenMesh);
+
+        /* screen glow */
+        const glow = new THREE.PointLight(0x6ea8ff, 2.4, 4.2, 2);
+        glow.position.set(0, 1.3, 0.7);
+        monitor.add(glow);
+
+        monitor.position.set(0, 0.07, -0.55);
+        g.add(monitor);
+
+        /* ── keyboard ── */
+        const kb = new THREE.Group();
+        const kbBody = new THREE.Mesh(
+          new THREE.BoxGeometry(1.55, 0.045, 0.52),
+          matPlastic,
+        );
+        kb.add(kbBody);
+        const kbTop = new THREE.Mesh(
+          new THREE.BoxGeometry(1.44, 0.012, 0.42),
+          new THREE.MeshStandardMaterial({
+            color: 0x14161a,
+            roughness: 0.6,
+            metalness: 0.2,
+            emissive: 0x1a3b6b,
+            emissiveIntensity: 0.55,
+          }),
+        );
+        kbTop.position.y = 0.028;
+        kb.add(kbTop);
+        kb.position.set(0, 0.1, 0.62);
+        g.add(kb);
+
+        /* ── mouse ── */
+        const mouse = new THREE.Mesh(
+          new THREE.SphereGeometry(0.14, 18, 12),
+          matPlastic,
+        );
+        mouse.scale.set(0.72, 0.5, 1.15);
+        mouse.position.set(1.05, 0.1, 0.62);
+        g.add(mouse);
+
+        /* ── laptop ── */
+        const laptop = new THREE.Group();
+        const lbBase = new THREE.Mesh(
+          new THREE.BoxGeometry(1.25, 0.045, 0.86),
+          matMetal,
+        );
+        laptop.add(lbBase);
+        const lbLid = new THREE.Mesh(
+          new THREE.BoxGeometry(1.25, 0.035, 0.86),
+          matMetal,
+        );
+        lbLid.position.set(0, 0.32, -0.42);
+        lbLid.rotation.x = -1.16;
+        laptop.add(lbLid);
+        laptop.position.set(-1.95, 0.1, 0.1);
+        laptop.rotation.y = 0.42;
+        g.add(laptop);
+
+        /* ── mug ── */
+        const mug = new THREE.Group();
+        const cup = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.13, 0.115, 0.24, 20),
+          matPlastic,
+        );
+        mug.add(cup);
+        const handle = new THREE.Mesh(
+          new THREE.TorusGeometry(0.075, 0.022, 8, 18, Math.PI * 1.35),
+          matPlastic,
+        );
+        handle.position.set(0.14, 0, 0);
+        handle.rotation.y = Math.PI / 2;
+        mug.add(handle);
+        mug.position.set(-1.05, 0.19, 0.75);
+        g.add(mug);
+
+        /* ── desk lamp ── */
+        const lamp = new THREE.Group();
+        const lampBase = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.2, 0.22, 0.04, 22),
+          matMetal,
+        );
+        lamp.add(lampBase);
+
+        const arm = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.022, 0.022, 0.95, 10),
+          matMetal,
+        );
+        arm.position.set(0, 0.48, 0);
+        lamp.add(arm);
+
+        const arm2 = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.02, 0.02, 0.6, 10),
+          matMetal,
+        );
+        arm2.position.set(-0.24, 0.98, 0.14);
+        arm2.rotation.z = 1.0;
+        arm2.rotation.x = -0.4;
+        lamp.add(arm2);
+
+        const shade = new THREE.Mesh(
+          new THREE.ConeGeometry(0.16, 0.22, 20, 1, true),
+          new THREE.MeshStandardMaterial({
+            color: 0x2a2d34,
+            roughness: 0.5,
+            metalness: 0.5,
+            side: THREE.DoubleSide,
+          }),
+        );
+        shade.position.set(-0.48, 1.06, 0.28);
+        shade.rotation.z = 1.2;
+        lamp.add(shade);
+
+        const bulb = new THREE.PointLight(0xffd9a8, 1.6, 3.2, 2);
+        bulb.position.set(-0.5, 1.0, 0.34);
+        lamp.add(bulb);
+
+        lamp.position.set(2.05, 0.08, 0.15);
+        lamp.rotation.y = -0.5;
+        g.add(lamp);
+
+        /* ── notebook ── */
+        const nb = new THREE.Mesh(
+          new THREE.BoxGeometry(0.52, 0.035, 0.72),
+          new THREE.MeshStandardMaterial({ color: 0xdfe3e8, roughness: 0.85 }),
+        );
+        nb.position.set(-0.75, 0.09, -0.28);
+        nb.rotation.y = 0.22;
+        g.add(nb);
+
+        /* ── phone ── */
+        const phone = new THREE.Mesh(
+          new THREE.BoxGeometry(0.22, 0.012, 0.44),
+          new THREE.MeshStandardMaterial({
+            color: 0x0b0c0f,
+            roughness: 0.3,
+            metalness: 0.6,
+          }),
+        );
+        phone.position.set(1.62, 0.09, -0.32);
+        phone.rotation.y = -0.5;
+        g.add(phone);
+
+        return { group: g, screen, glow, bulb };
+      }
+
+      /* ──────────────────────────────────────────────
+   FLOATING TECH CHIPS
+   ────────────────────────────────────────────── */
+      function buildTechChips(THREE, count = 8) {
+        const labels = ["JS", "TS", "⬢", "⚛", "CSS", "3D", "API", "DX"];
+        const group = new THREE.Group();
+        const items = [];
+
+        labels.slice(0, count).forEach((label, i) => {
+          /* draw label onto a canvas */
+          const c = document.createElement("canvas");
+          c.width = c.height = 256;
+          const ctx = c.getContext("2d");
+          ctx.fillStyle = "#0e1014";
+          ctx.fillRect(0, 0, 256, 256);
+          ctx.strokeStyle = "rgba(47,107,255,.7)";
+          ctx.lineWidth = 6;
+          ctx.strokeRect(14, 14, 228, 228);
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "600 92px ui-monospace, monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(label, 128, 136);
+
+          const tex = new THREE.CanvasTexture(c);
+          tex.colorSpace = THREE.SRGBColorSpace;
+
+          /* 6-face box, front face uses the label texture */
+          const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.06), [
+            new THREE.MeshStandardMaterial({
+              color: 0x1a1d23,
+              roughness: 0.5,
+              metalness: 0.5,
+            }),
+            new THREE.MeshStandardMaterial({
+              color: 0x1a1d23,
+              roughness: 0.5,
+              metalness: 0.5,
+            }),
+            new THREE.MeshStandardMaterial({
+              color: 0x1a1d23,
+              roughness: 0.5,
+              metalness: 0.5,
+            }),
+            new THREE.MeshStandardMaterial({
+              color: 0x1a1d23,
+              roughness: 0.5,
+              metalness: 0.5,
+            }),
+            new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }),
+            new THREE.MeshStandardMaterial({
+              color: 0x1a1d23,
+              roughness: 0.5,
+              metalness: 0.5,
+            }),
+          ]);
+
+          /* spread them around the desk in 3D space */
+          const angle = (i / count) * Math.PI * 2;
+          const radius = 2.6 + (i % 3) * 0.5;
+          mesh.position.set(
+            Math.cos(angle) * radius,
+            1.4 + Math.sin(i * 1.7) * 0.6,
+            Math.sin(angle) * radius * 0.5 - 0.4,
+          );
+          mesh.userData = {
+            base: mesh.position.clone(),
+            phase: i * 0.8,
+            speed: 0.35 + (i % 4) * 0.1,
+          };
+          group.add(mesh);
+          items.push(mesh);
+        });
+
+        return { group, items };
+      }
+
+      /* ──────────────────────────────────────────────
+   CREATE WORKSPACE SCENE
+   ────────────────────────────────────────────── */
+      function createWorkspaceScene(THREE, canvas) {
+        /* ── renderer ── */
+        const renderer = new THREE.WebGLRenderer({
+          canvas,
+          antialias: !isTouch,
+          alpha: true,
+          powerPreference: "high-performance",
+        });
+        renderer.setPixelRatio(
+          Math.min(window.devicePixelRatio, isTouch ? 1.5 : 2),
+        );
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
+
+        /* ── scene ── */
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0b0c0f, 0.055);
+
+        /* ── camera ── */
+        const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 120);
+
+        /* ── lighting ── */
+        scene.add(new THREE.HemisphereLight(0x9fc3ff, 0x05060a, 0.7));
+
+        const key = new THREE.DirectionalLight(0xffffff, 1.7);
+        key.position.set(5, 8, 6);
+        scene.add(key);
+
+        const rim = new THREE.DirectionalLight(0x3ad2ff, 2.4);
+        rim.position.set(-6, 3, -6);
+        scene.add(rim);
+
+        const accent = new THREE.PointLight(0x2f6bff, 26, 22, 2);
+        accent.position.set(-4, 4, 2);
+        scene.add(accent);
+
+        /* ── rig (everything lives here) ── */
+        const rig = new THREE.Group();
+        scene.add(rig);
+
+        /* ── THE COMPUTER DESK ── */
+        const desk = buildDesk(THREE, { screenVariant: 1 });
+        rig.add(desk.group);
+
+        /* ── FLOATING TECH CHIPS ── */
+        const chips = buildTechChips(THREE, isTouch ? 6 : 10);
+        chips.group.position.set(0, 0.6, 0);
+        rig.add(chips.group);
+
+        /* ── DARK FLOOR ── */
+        const floor = new THREE.Mesh(
+          new THREE.PlaneGeometry(60, 60),
+          new THREE.MeshStandardMaterial({
+            color: 0x0a0b0e,
+            roughness: 0.72,
+            metalness: 0.35,
+          }),
+        );
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -0.55;
+        rig.add(floor);
+
+        /* ── SERVER RACK SILHOUETTE ── */
+        const rack = new THREE.Group();
+        for (let i = 0; i < 5; i++) {
+          const unit = new THREE.Mesh(
+            new THREE.BoxGeometry(1.1, 0.22, 0.9),
+            new THREE.MeshStandardMaterial({
+              color: 0x14161b,
+              roughness: 0.6,
+              metalness: 0.6,
+            }),
+          );
+          unit.position.y = -0.4 + i * 0.26;
+          rack.add(unit);
+
+          const led = new THREE.Mesh(
+            new THREE.SphereGeometry(0.028, 8, 8),
+            new THREE.MeshBasicMaterial({ color: i % 2 ? 0x3ad2ff : 0x2f6bff }),
+          );
+          led.position.set(0.5, unit.position.y, 0.46);
+          rack.add(led);
+        }
+        rack.position.set(-6.5, 0.6, -5.5);
+        rack.rotation.y = 0.5;
+        rig.add(rack);
+
+        /* ── RESIZE ── */
+        const resize = () => {
+          const w = canvas.clientWidth || canvas.parentElement.clientWidth;
+          const h = canvas.clientHeight || canvas.parentElement.clientHeight;
+          if (!w || !h) return;
+          renderer.setSize(w, h, false);
+          camera.aspect = w / h;
+          camera.fov = w / h < 1 ? 52 : 38;
+          camera.updateProjectionMatrix();
+        };
+        resize();
+        const ro = new ResizeObserver(resize);
+        ro.observe(canvas);
+
+        /* ── POINTER INFLUENCE ── */
+        let tx = 0,
+          ty = 0,
+          px = 0,
+          py = 0;
+        window.addEventListener(
+          "mousemove",
+          (e) => {
+            tx = (e.clientX / window.innerWidth - 0.5) * 2;
+            ty = (e.clientY / window.innerHeight - 0.5) * 2;
+          },
+          { passive: true },
+        );
+
+        /* ── SCROLL PROGRESS → CAMERA PATH ── */
+        let progress = 0;
+        const section =
+          canvas.closest(".workspace-inner") || canvas.parentElement;
+        const computeProgress = () => {
+          if (!section) return;
+          const r = section.getBoundingClientRect();
+          const total = r.height - window.innerHeight;
+          if (total <= 0) {
+            progress = 0;
+            return;
+          }
+          progress = clamp(-r.top / total, 0, 1);
+        };
+        computeProgress();
+        window.addEventListener("scroll", computeProgress, { passive: true });
+        window.addEventListener("resize", computeProgress);
+
+        /* ── VISIBILITY GATING (don't render off-screen) ── */
+        let visible = true;
+        const vio = new IntersectionObserver(
+          (en) => {
+            visible = en[0].isIntersecting;
+          },
+          { threshold: 0 },
+        );
+        vio.observe(canvas);
+
+        /* ── STAGE HIGHLIGHTING ── */
+        const stageEls = $$("[data-stage]");
+        const setStage = () => {
+          const idx = Math.min(
+            stageEls.length - 1,
+            Math.floor(progress * stageEls.length),
+          );
+          stageEls.forEach((s, i) =>
+            s.classList.toggle("is-active", i === idx),
+          );
+        };
+        setStage();
+        window.addEventListener("scroll", setStage, { passive: true });
+
+        /* ── CAMERA KEYFRAMES ── */
+        const KEY = [
+          {
+            pos: new THREE.Vector3(0, 2.6, 10.5),
+            look: new THREE.Vector3(0, 1.0, 0),
+          },
+          {
+            pos: new THREE.Vector3(-1.6, 1.9, 7.2),
+            look: new THREE.Vector3(0, 1.1, -0.4),
+          },
+          {
+            pos: new THREE.Vector3(0, 1.7, 4.4),
+            look: new THREE.Vector3(0, 1.25, -0.55),
+          },
+          {
+            pos: new THREE.Vector3(1.9, 1.4, 2.8),
+            look: new THREE.Vector3(0.4, 1.4, 0.4),
+          },
+        ];
+
+        const camPos = new THREE.Vector3().copy(KEY[0].pos);
+        const camLook = new THREE.Vector3().copy(KEY[0].look);
+
+        /* ── ANIMATION LOOP ── */
+        let t = 0;
+        const clock = new THREE.Clock();
+
+        const tick = () => {
+          requestAnimationFrame(tick);
+          if (!visible) return;
+
+          const dt = Math.min(clock.getDelta(), 0.05);
+          t += dt;
+
+          px = lerp(px, tx, 0.04);
+          py = lerp(py, ty, 0.04);
+
+          /* interpolate camera along scroll progress */
+          const seg = progress * (KEY.length - 1);
+          const i0 = Math.floor(seg);
+          const i1 = Math.min(KEY.length - 1, i0 + 1);
+          const f = seg - i0;
+
+          const targetPos = new THREE.Vector3().lerpVectors(
+            KEY[i0].pos,
+            KEY[i1].pos,
+            f,
+          );
+          const targetLook = new THREE.Vector3().lerpVectors(
+            KEY[i0].look,
+            KEY[i1].look,
+            f,
+          );
+
+          camPos.lerp(targetPos, 0.06);
+          camLook.lerp(targetLook, 0.06);
+
+          camera.position.copy(camPos);
+          camera.position.x += px * 0.45;
+          camera.position.y += -py * 0.28;
+          camera.lookAt(camLook);
+
+          /* floating chips */
+          chips.items.forEach((m) => {
+            const d = m.userData;
+            m.position.y = d.base.y + Math.sin(t * d.speed + d.phase) * 0.22;
+            m.rotation.y = t * 0.2 + d.phase;
+            m.rotation.x = Math.sin(t * 0.25 + d.phase) * 0.3;
+          });
+
+          /* screen glow breathing */
+          desk.glow.intensity = 2.4 + Math.sin(t * 1.2) * 0.4;
+          accent.intensity = 22 + Math.sin(t * 0.7) * 6;
+
+          renderer.render(scene, camera);
+        };
+
+        canvas.classList.add("is-ready");
+        tick();
+      }
+
+      /* ──────────────────────────────────────────────
+   BOOT
+   ────────────────────────────────────────────── */
+      async function boot() {
+        /* reveal animations for the overlay text */
+        const io = new IntersectionObserver(
+          (entries, obs) => {
+            entries.forEach((en) => {
+              if (en.isIntersecting) {
+                en.target.classList.add("is-in");
+                obs.unobserve(en.target);
+              }
+            });
+          },
+          { rootMargin: "0px 0px -12% 0px", threshold: 0.12 },
+        );
+        $$("[data-reveal]").forEach((n) => io.observe(n));
+
+        /* reduced motion → static fallback */
+        if (prefersReduced) {
+          document.body.classList.add("no-webgl");
+          return;
+        }
+
+        /* load Three.js */
+        const THREE = await loadThree();
+        if (!THREE) {
+          document.body.classList.add("no-webgl");
+          return;
+        }
+
+        /* test WebGL */
+        const test = document.createElement("canvas");
+        const gl = test.getContext("webgl2") || test.getContext("webgl");
+        if (!gl) {
+          document.body.classList.add("no-webgl");
+          return;
+        }
+
+        /* create the scene */
+        try {
+          createWorkspaceScene(THREE, document.getElementById("wsCanvas"));
+        } catch (err) {
+          console.error("Workspace scene failed:", err);
+          document.body.classList.add("no-webgl");
+        }
+      }
+
+      /* run when DOM is ready */
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () =>
+          setTimeout(boot, 0),
+        );
+      } else {
+        setTimeout(boot, 0);
+      }
+    </script>
+  </body>
+</html>
